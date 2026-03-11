@@ -97,11 +97,22 @@ On the test set we report:
 | `outputs/figures/parity_plot.png` | True vs predicted scatter |
 | `outputs/figures/interval_coverage.png` | Nominal vs empirical coverage bars |
 
+## Bootstrapping (uncertainty in performance and coefficients)
+
+We resample the **training set with replacement** \(B\) times (default \(B=200\)), refit the **same** baseline OLS model at the selected lag depth \(k\), and each time evaluate on the **fixed** test set. This yields a bootstrap distribution of test MAE/MSE and of each coefficient. Reporting **bootstrap mean** and **percentile 95% intervals** quantifies sampling uncertainty without assuming parametric form for the metric. Coefficients with intervals crossing zero or with large spread are **noisy**; tight intervals indicate **stable** estimates. Outputs: `outputs/bootstrap_metrics.json`, `outputs/bootstrap_coefficients.csv`, and histogram/interval figures under `outputs/figures/`.
+
+## MAP vs MLE (Ridge as Gaussian prior)
+
+**OLS** under the linear-Gaussian model is **MLE**: minimize \(\sum_i (y_i - x_i^\top\beta)^2\) over \(\beta\) (and \(\sigma^2\) from residuals). **Ridge** adds a penalty \(\lambda\|\beta\|^2\), which is equivalent to **MAP** when the **prior** on \(\beta\) is \(\mathcal{N}(0, \tau^2 I)\) with \(\lambda \propto 1/\tau^2\): the prior pulls coefficients toward zero, reducing variance at the cost of bias. We select \(\lambda\) (sklearn `Ridge` `alpha`) by **validation MAE** on the same contiguous split; we compare test MAE/MSE and interval coverage to the baseline. Outputs: `outputs/map_vs_mle_comparison.csv`, `outputs/best_ridge_model.json`, bar and coefficient-shrinkage figures.
+
+## Distribution fitting (hourly PM1, daily PM1, residuals)
+
+**Hourly PM1** is often **right-skewed** (many low values, occasional spikes), so **Lognormal** and **Gamma** can achieve better log-likelihood/AIC than **Normal**. **Daily averages** smooth within-day variation and can look more **Normal**. For **residuals**, approximate **Normality** supports the linear-Gaussian predictive intervals (constant \(\hat{\sigma}\)); if residuals contain nonpositive values, we fit **Normal only** to the full residual vector and skip Lognormal/Gamma on the full sample. We fit with `scipy.stats` (MLE), report log-likelihood, AIC, and BIC, and overlay densities on histograms. Outputs: `outputs/distribution_fits_*.csv` and `outputs/figures/*_distribution_fit.png`.
+
 ## Limitations and CS109-Scope Extensions (brief)
 
 - **Linear mean:** Real relationships may be nonlinear; extensions could use polynomial features or tree-based models.
 - **Constant variance:** Heteroscedasticity could be modeled (e.g., predict log-variance).
-- **Regularization:** MAP with a Gaussian prior on \(\beta\) leads to ridge regression; we use OLS for simplicity.
 - **Other lags:** Only \(k \in \{0,1,3,6,12\}\) are tried; a finer grid or cross-validation over \(k\) could be explored.
 
 ---
